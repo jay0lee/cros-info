@@ -1,0 +1,43 @@
+<!doctype html>
+<!--
+ This page is shown when the extension button is clicked, because the
+ "browser_action" field in manifest.json contains the "default_popup" key with
+ value "popup.html".
+ -->
+<html>
+  <head>
+    <title>CrOS Enterprise Info</title>
+    <script src="popup.js"></script>
+<style type="text/css">
+body {
+  min-width: 400px;
+  max-width: 100%;
+  min-height: 250px;
+  max-height: 100%;
+  position: relative;
+  vertical-align:middle;
+}
+
+/* iframe's parent node */
+    div#root {
+        position: fixed;
+        width: 100%;
+        height: 100%;
+    }
+
+    /* iframe itself */
+    div#root > iframe {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border: none;
+    }
+</style>
+  </head>
+  <body>
+    <div id="root">
+    <iframe id="appengine" height="100%" width="100%" frameborder="0">
+    </iframe>
+    </div>
+  </body>
+</html>
