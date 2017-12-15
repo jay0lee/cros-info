@@ -7,13 +7,17 @@ import googleapiclient.discovery
 import pprint
 import json
 
+# From https://www.chromium.org/chromium-os/tpm_firmware_update
+CROS_TPM_VULN_VERSIONS = [u'41f',  u'420', u'628', u'8520',]
+CROS_TPM_FIXED_VERSIONS = [u'422', u'62b', u'8521',]
+
 class RefreshTokens(ndb.Model):
   refresh_token = ndb.StringProperty(indexed=True)
 
 class MainHandler(webapp2.RequestHandler):
   def get(self):
     deviceid = self.request.get(argument_name='deviceid', default_value=None)
-    fields = self.request.get(argument_name=u'fields', default_value=u'annotatedAssetId,annotatedLocation,annotatedUser,ethernetMacAddress,macAddress,model,notes,orgUnitPath,serialNumber')
+    fields = self.request.get(argument_name=u'fields', default_value=u'annotatedAssetId,annotatedLocation,annotatedUser,ethernetMacAddress,macAddress,model,notes,orgUnitPath,serialNumber,tpmVersionInfo/firmwareVersion')
     if not deviceid:
       self.response.out.write('<b>Need to specify deviceid</b>')
       return
@@ -34,16 +38,27 @@ class MainHandler(webapp2.RequestHandler):
      token_expiry=datetime.datetime.today() - datetime.timedelta(hours = 1),
      token_uri='https://accounts.google.com/o/oauth2/token',
      user_agent='CrOS Info Lookup cros-info.appspot.com')
-    #try:
-    credentials.refresh(httplib2.Http())
-    #except oauth2client.client.AccessTokenRefreshError:
-    #  self.response.out.write('Please login as an administrator and <a target="_blank" href="adminlogin">authorize this extension.')
-    #  return
+    try:
+      credentials.refresh(httplib2.Http())
+    except oauth2client.client.AccessTokenRefreshError:
+      self.response.out.write('Please login as an administrator and <a target="_blank" href="adminlogin">authorize this extension.')
+      return
     http = httplib2.Http()
     http = credentials.authorize(http)
     cd = googleapiclient.discovery.build('admin', 'directory_v1', http=http)
     device_info = cd.chromeosdevices().get(customerId='my_customer',
      deviceId=deviceid, projection='FULL', fields=fields).execute()
+    if u'tpmVersionInfo' in device_info and 'firmwareVersion' in device_info[u'tpmVersionInfo']:
+      fwver = device_info[u'tpmVersionInfo'][u'firmwareVersion']
+      if fwver in CROS_TPM_VULN_VERSIONS:
+        device_info[u'TPM Vulnerability'] = u'<font color="red">Vulnerable</font> - %s' % fwver
+      elif fwver in CROS_TPM_FIXED_VERSIONS:
+        device_info[u'TPM Vulnerability'] = u'<font color="green">Updated</font> - %s' % fwver
+      else:
+        device_info[u'TPM Vulnerability'] = u'<font color="green">Not Vulnerable</font> - %s' % fwver
+      del(device_info[u'tpmVersionInfo'])
+    else:
+      device_info[u'TPM Vulnerability'] = u'<font color="orange">Version Not Reported</font>'
     attribute_map = {
           'annotatedLocation': u'Location',
           'macAddress': u'WiFi MAC Address',
@@ -96,7 +111,9 @@ class MainHandler(webapp2.RequestHandler):
       elif type(value) in [str, unicode]:
         row_value = value
       row_data[row_key] = row_value
-    ordered_keys = [u'Model', u'Serial Number', u'WiFi MAC Address', u'Ethernet MAC Address', u'Asset ID', u'User', u'Note', u'Location', u'Organization Unit']
+    ordered_keys = [u'Model', u'Serial Number', u'WiFi MAC Address',
+        u'Ethernet MAC Address', u'Asset ID', u'User', u'Note',
+        u'Location', u'Organization Unit', u'TPM Vulnerability']
     everything_else = filter(lambda a: a not in ordered_keys, row_data.keys())
     row_order = ordered_keys + everything_else
     for ordered_key in row_order:
