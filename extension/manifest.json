@@ -2,24 +2,26 @@
 "update_url": "https://clients2.google.com/service/update2/crx",
 
   "manifest_version": 2,
-
   "name": "Chrome Device Info",
   "short_name": "Chrome Info",
   "description": "Shows detailed info about an enterprise enrolled Chrome device.",
-  "version": "1.37",
+  "version": "1.42",
   "browser_action": {
     "default_icon": "icon.png",
-    "default_popup": "popup.html"
-  },
+    "default_popup": "popup.html",
+    "default_title": "Chrome Device Info"
+    },
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": false
+    },
   "minimum_chrome_version": "46",
   "permissions": [
-    "activeTab",
-    "https://cros-info.appspot.com/",
     "identity",
     "identity.email",
     "enterprise.deviceAttributes"
-  ],
+    ],
   "storage": {
     "managed_schema": "schema.json"
-  }
+    }
 }
