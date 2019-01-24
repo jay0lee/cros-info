@@ -97,7 +97,8 @@ document.onreadystatechange = function () {
         switch ( item ) {
           case 'serialNumber':
             chrome.enterprise.deviceAttributes.getDeviceSerialNumber(function (sn) {
-              addToTable({'Serial Number': sn});
+              addToTable({'Serial Number': '<svg id="serialnumber"></svg>'});
+              JsBarcode("#serialnumber", sn, {height: 30});
             });
             break;
           case 'ipAddresses':
@@ -105,7 +106,8 @@ document.onreadystatechange = function () {
             break;
           case 'annotatedAssetId':
             chrome.enterprise.deviceAttributes.getDeviceAssetId(function(aid) {
-              addToTable({'Asset ID': aid});
+              addToTable({'Asset ID': '<svg id="assetid"></svg>'});
+              JsBarcode("#assetid", aid, {height: 30});
             });
             break;
           case 'annotatedLocation':
@@ -138,6 +140,12 @@ document.onreadystatechange = function () {
                     } else {
                       mapped_items['TPM Vulnerability'] = '<font color="green">Not Vulnerable</font> - ' + fwver;
                     }
+                  }
+                  if ( item === 'macAddress' || item === 'ethernetMacAddress' ) {
+                    var mac_address = items[item];
+                    var mac_split = mac_address.match(/.{1,2}/g);
+                    mac_address = mac_split.join(':');
+                    items[item] = mac_address;
                   }
                   if ( item in attribute_map ) {
                     mapped_items[attribute_map[item]] = items[item];
