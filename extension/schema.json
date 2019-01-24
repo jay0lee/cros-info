@@ -6,6 +6,9 @@
     },
     "fields": {
       "type": "string"
+    },
+    "remote_url": {
+      "type": "string"
     }
   }
 }

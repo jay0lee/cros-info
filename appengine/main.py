@@ -14,6 +14,44 @@ CROS_TPM_FIXED_VERSIONS = [u'422', u'62b', u'8521',]
 class RefreshTokens(ndb.Model):
   refresh_token = ndb.StringProperty(indexed=True)
 
+class JsonHandler(webapp2.RequestHandler):
+  def get(self):
+    self.response.headers['Content-Type'] = 'application/json'
+    deviceid = self.request.get(argument_name='deviceid', default_value=None)
+    fields = self.request.get(argument_name=u'fields', default_value=u'annotatedAssetId,annotatedLocation,annotatedUser,ethernetMacAddress,macAddress,model,notes,orgUnitPath,serialNumber,tpmVersionInfo/firmwareVersion')
+    if not deviceid:
+      self.response.out.write('{"success": false, "error_message": "Need to specify deviceid parameter"}')
+      return
+    primary_domain = self.request.get(argument_name='primary_domain', default_value=None)
+    if not primary_domain:
+      self.response.out.write('{"success": false, "error_message": "Need to specify primary_domain parameter"}')
+      return
+    token = RefreshTokens.get_by_id(id=primary_domain)
+    if not token:
+      self.response.out.write('{"success": false, "error_message": "Please login as an administrator and <a target=\"_blank\" href=\"adminlogin\">authorize this extension."}')
+      return
+    cs_data = json.loads(open('client_secrets.json').read())
+    credentials = oauth2client.client.OAuth2Credentials(
+     access_token='',
+     client_id=cs_data['web']['client_id'],
+     client_secret=cs_data['web']['client_secret'],
+     refresh_token=token.refresh_token,
+     token_expiry=datetime.datetime.today() - datetime.timedelta(hours = 1),
+     token_uri='https://accounts.google.com/o/oauth2/token',
+     user_agent='CrOS Info Lookup cros-info.appspot.com')
+    try:
+      credentials.refresh(httplib2.Http())
+    except oauth2client.client.AccessTokenRefreshError:
+      self.response.out.write('{"success": false, "error_message": "Please login as an administrator and <a target=\"_blank\" href=\"adminlogin\">authorize this extension."}')
+      return
+    http = httplib2.Http()
+    http = credentials.authorize(http)
+    cd = googleapiclient.discovery.build('admin', 'directory_v1', http=http)
+    device_info = cd.chromeosdevices().get(customerId='my_customer',
+     deviceId=deviceid, projection='FULL', fields=fields).execute()
+    device_info['success'] = True
+    self.response.out.write(json.dumps(device_info))
+
 class MainHandler(webapp2.RequestHandler):
   def get(self):
     deviceid = self.request.get(argument_name='deviceid', default_value=None)
@@ -163,5 +201,6 @@ class AdminLoginHandler(webapp2.RequestHandler):
       self.redirect(auth_uri)
 
 app = webapp2.WSGIApplication([('/', MainHandler),
-                               ('/adminlogin', AdminLoginHandler)],
+                               ('/adminlogin', AdminLoginHandler),
+                               ('/json', JsonHandler)],
                                        debug=False)
